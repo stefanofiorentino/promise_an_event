@@ -20,7 +20,7 @@ void reject()
     std::cout << "REJECT" << std::endl;
 }
 
-void detect()
+void detect(float frac)
 {
     auto timeout = 5s;
     std::promise<void> p;
@@ -39,7 +39,7 @@ void detect()
                        }
                    });
 
-    std::this_thread::sleep_for(timeout+timeout);
+    std::this_thread::sleep_for(frac*timeout);
 
     // if an exception is raised before std::promise::set_value() is called, the program will deadlock.
     p.set_value();
@@ -48,6 +48,9 @@ void detect()
 
 int main()
 {
-    detect();
+    // this first call resolve correctly
+    detect(0.5f);
+    // this second call reject due to timeout
+    detect(1.5f);
     return 0;
 }
