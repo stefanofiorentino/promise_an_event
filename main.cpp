@@ -4,20 +4,28 @@
 using namespace std::chrono_literals;
 
 // https://stackoverflow.com/a/10917945/2794395
+
+template <typename F, typename... Ts>
+inline auto reallyAsync(F&& f, Ts&&... params) {
+    return std::async(std::launch::async, std::forward<F>(f), std::forward<Ts>(params)...);
+}
+
 template<typename R>
 bool is_ready(std::future<R> const &f)
 {
     return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
 }
 
-void resolve_func()
+bool resolve_func()
 {
     std::cout << "RESOLVE" << std::endl;
+    return true;
 }
 
-void reject_func()
+bool reject_func()
 {
     std::cout << "REJECT" << std::endl;
+    return false;
 }
 
 void detect(float frac)
@@ -25,17 +33,17 @@ void detect(float frac)
     auto timeout = 5s;
     std::promise<void> p;
 
-    std::thread th([&p, &timeout](auto resolve, auto reject)
+    auto fs = reallyAsync([&p, &timeout](auto resolve, auto reject)
                    {
                        auto future = p.get_future();
                        future.wait_until(std::chrono::steady_clock::now() + timeout);
                        if (is_ready(future))
                        {
-                           resolve();
+                           return resolve();
                        }
                        else
                        {
-                           reject();
+                           return reject();
                        }
                    }, resolve_func, reject_func);
 
@@ -45,7 +53,8 @@ void detect(float frac)
 
     // if an exception is raised before std::promise::set_value() is called, the program will deadlock (forever).
     p.set_value();
-    th.join();
+
+    // the destructor of fs (RAII) call join() for us.
 }
 
 int main()
