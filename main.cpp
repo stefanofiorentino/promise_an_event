@@ -10,12 +10,12 @@ bool is_ready(std::future<R> const &f)
     return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
 }
 
-void resolve()
+void resolve_func()
 {
     std::cout << "RESOLVE" << std::endl;
 }
 
-void reject()
+void reject_func()
 {
     std::cout << "REJECT" << std::endl;
 }
@@ -25,7 +25,7 @@ void detect(float frac)
     auto timeout = 5s;
     std::promise<void> p;
 
-    std::thread th([&p, &timeout]
+    std::thread th([&p, &timeout](auto resolve, auto reject)
                    {
                        auto future = p.get_future();
                        future.wait_until(std::chrono::steady_clock::now() + timeout);
@@ -37,11 +37,13 @@ void detect(float frac)
                        {
                            reject();
                        }
-                   });
+                   }, resolve_func, reject_func);
+
+    // additional tasks can be run here, but cannot throw (really).
 
     std::this_thread::sleep_for(frac*timeout);
 
-    // if an exception is raised before std::promise::set_value() is called, the program will deadlock.
+    // if an exception is raised before std::promise::set_value() is called, the program will deadlock (forever).
     p.set_value();
     th.join();
 }
